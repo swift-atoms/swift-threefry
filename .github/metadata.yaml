@@ -1,0 +1,7 @@
+description: "Threefry-2x64-20 for Swift: a counter-based random generator whose value is a pure function of seed, stream and index."
+topics:
+  - primitives
+  - random
+homepage: "https://swift-institute.org"
+readme:
+  family: E
