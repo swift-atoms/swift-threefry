@@ -168,3 +168,59 @@ extension `Threefry Tests` {
         }
     }
 }
+
+extension `Threefry Tests`.`Threefry generator contracts` {
+    @Test
+    func `The generator reproduces the values recorded before buffering`() {
+        var generator = Threefry.Generator(key: key, stream: 5)
+        var values = (0..<6).map { _ in generator.next() }
+        _ = generator.byte()
+        values += (0..<5).map { _ in generator.next() }
+        let filled = bytes(13, from: &generator)
+        values += (0..<3).map { _ in generator.next() }
+        #expect(
+            values == [
+                0xf5ec_2fa1_912a_744c, 0xc6ec_9a3e_3ccb_836b, 0xd39e_5724_e8be_0c58,
+                0x03e0_0fe2_cce4_f4a2, 0xa780_f788_f483_2815, 0x2356_b8dd_befc_ef55,
+                0x2cf5_4dfc_7370_3e13, 0x41c9_2b4c_70e8_3a5a, 0x7a60_e586_cba4_a416,
+                0x8245_04c6_2fff_c422, 0xc826_3ee3_d938_986b, 0x04fd_ab11_5721_c541,
+                0x19c8_108c_4ff0_b788, 0xb89a_9e88_9566_9020,
+            ]
+        )
+        #expect(filled == [234, 244, 145, 222, 190, 201, 116, 195, 135, 110, 46, 108, 143])
+        #expect(generator.index == 7)
+        #expect(generator.offset == 14)
+    }
+}
+
+extension `Threefry Tests`.`Threefry generator contracts` {
+    @Test
+    func `A 64-bit value from any offset is the next eight bytes`() {
+        var reference = Threefry.Generator(key: key, stream: 2)
+        let expected = bytes(64, from: &reference)
+        (0..<16).forEach { start in
+            var generator = Threefry.Generator(key: key, stream: 2)
+            _ = bytes(start, from: &generator)
+            (0..<4).forEach { word in
+                var value: UInt64 = 0
+                (0..<8).forEach { position in
+                    value |= UInt64(expected[start + word * 8 + position]) << UInt64(position * 8)
+                }
+                #expect(generator.next() == value)
+            }
+        }
+    }
+
+    @Test
+    func `A keyed draw is the generator for its triple without stepping`() {
+        var stepped = Threefry.Generator(key: key, stream: 11)
+        _ = (0..<6).map { _ in stepped.next() }
+        var keyed = Threefry.Generator(key: key, stream: 11, index: 3)
+        #expect(keyed == stepped)
+        #expect((0..<9).map { _ in keyed.next() } == (0..<9).map { _ in stepped.next() })
+        let block = Threefry.block(key: key, counter: .init(3, 11))
+        var fresh = Threefry.Generator(key: key, stream: 11, index: 3)
+        #expect(fresh.next() == block.first)
+        #expect(fresh.next() == block.second)
+    }
+}

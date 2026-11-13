@@ -2,6 +2,15 @@
 
 Use this package when you need random bits that are the same for the same seed on every machine, and that you can ask for in any order: the value for a seed, a stream and an index, with no earlier value computed first. Start from `Threefry.block(key:counter:)`, the pure function, or from `Threefry.Generator`, which reads the same blocks in order and conforms to `Random.Generator` from swift-random and to the standard library's `RandomNumberGenerator`. It is Threefry-2x64-20 of Salmon, Moraes, Dror and Shaw (*Parallel random numbers: as easy as 1, 2, 3*, SC'11). It is not a cryptographic generator: for secrets, use a platform source that conforms to `Random.Generator`.
 
+## Keyed draws
+
+Random access is what a counter-based generator is. The values for a (key, stream, index) triple are one call away, and nothing before them is computed:
+
+- `Threefry.Generator(key:stream:index:)` is the generator for the triple. Give each independent thing its own stream (a particle, a pixel, a task) and draw from it in order: the same triple gives the same values on every machine, whatever was drawn for other streams, in whatever order or on whatever thread.
+- `Threefry.block(key:counter:)` with counter `Block(index, stream)` is the triple's 128 bits, as a pure function; its `first` and `second` are the first two values of `next()` on that generator.
+
+A generator holds the block it is reading, so sequential reads compute one block for every 16 bytes, however they are split into `next()`, `byte()` and `fill` calls; creating a generator computes its first block.
+
 ## Laws
 
 - `Threefry.block(key:counter:)` is Threefry-2x64 with 20 rounds, and reproduces the published known-answer vectors. It uses only 64-bit wrapping addition, rotation and exclusive or, so the result is the same on every platform and word size.
