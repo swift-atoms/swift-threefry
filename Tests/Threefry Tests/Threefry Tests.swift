@@ -224,3 +224,35 @@ extension `Threefry Tests`.`Threefry generator contracts` {
         #expect(fresh.next() == block.second)
     }
 }
+
+extension `Threefry Tests` {
+    @Suite
+    struct `Threefry keyed unit draws` {
+        static let triples: [(key: Threefry.Key, stream: UInt64, index: UInt64)] = [
+            (Threefry.Key(0, 0), 0, 0),
+            (Threefry.Key(930, 5), 17, 3),
+            (Threefry.Key(.max, 1), .max, .max),
+        ]
+
+        @Test
+        func `A keyed draw is the first draw of the generator for the triple`() {
+            for (key, stream, index) in Self.triples {
+                var generator = Threefry.Generator(key: key, stream: stream, index: index)
+                let draw: Double = Threefry.unit(key: key, stream: stream, index: index)
+                #expect(draw == generator.unit(as: Double.self))
+                var single = Threefry.Generator(key: key, stream: stream, index: index)
+                #expect(Threefry.unit(key: key, stream: stream, index: index, as: Float.self) == single.unit(as: Float.self))
+            }
+        }
+
+        @Test
+        func `A keyed draw is the top bits of the first word of the block`() {
+            for (key, stream, index) in Self.triples {
+                let block = Threefry.block(key: key, counter: Threefry.Block(index, stream))
+                let draw = Threefry.unit(key: key, stream: stream, index: index, as: Double.self)
+                #expect(draw == Double(block.first >> 11) * 0x1p-53)
+                #expect(draw >= 0 && draw < 1)
+            }
+        }
+    }
+}

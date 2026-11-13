@@ -8,6 +8,7 @@ Random access is what a counter-based generator is. The values for a (key, strea
 
 - `Threefry.Generator(key:stream:index:)` is the generator for the triple. Give each independent thing its own stream (a particle, a pixel, a task) and draw from it in order: the same triple gives the same values on every machine, whatever was drawn for other streams, in whatever order or on whatever thread.
 - `Threefry.block(key:counter:)` with counter `Block(index, stream)` is the triple's 128 bits, as a pure function; its `first` and `second` are the first two values of `next()` on that generator.
+- `Threefry.unit(key:stream:index:as:)` is the triple's draw from [0, 1) in one call: the first `unit(as:)` of the generator for the triple, which is the top bits of the block's `first` word as a share of one, `Double(first >> 11) * 0x1p-53` for `Double`.
 
 A generator holds the block it is reading, so sequential reads compute one block for every 16 bytes, however they are split into `next()`, `byte()` and `fill` calls; creating a generator computes its first block.
 

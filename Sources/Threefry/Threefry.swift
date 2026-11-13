@@ -27,6 +27,21 @@ extension Threefry {
         return Block(first, second)
     }
 
+    /// The draw from [0, 1) for a (key, stream, index) triple, without making a generator first.
+    ///
+    /// It is the first `unit(as:)` of `Generator(key: key, stream: stream, index: index)`: the top bits
+    /// of the first word of `block(key: key, counter: Block(index, stream))`, as many as the type's
+    /// significand holds, as a share of one.
+    public static func unit<Value: BinaryFloatingPoint>(
+        key: Key,
+        stream: UInt64 = 0,
+        index: UInt64 = 0,
+        as _: Value.Type = Value.self
+    ) -> Value {
+        var generator = Generator(key: key, stream: stream, index: index)
+        return generator.unit(as: Value.self)
+    }
+
     /// Four mix rounds with the given rotations.
     @inline(__always)
     private static func rounds(
