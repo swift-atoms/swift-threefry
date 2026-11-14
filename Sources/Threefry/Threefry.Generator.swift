@@ -102,14 +102,17 @@ extension Threefry.Generator: Swift::RandomNumberGenerator {
         case 0:
             offset = 8
             return current.first
+
         case 8:
             let value = current.second
             advance()
             return value
+
         case 1..<8:
             let shift = UInt64(offset) &* 8
             offset += 8
             return current.first &>> shift | current.second &<< (64 &- shift)
+
         default:
             let shift = UInt64(offset - 8) &* 8
             let low = current.second &>> shift
