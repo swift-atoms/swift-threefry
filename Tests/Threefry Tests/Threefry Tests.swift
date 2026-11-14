@@ -256,3 +256,105 @@ extension `Threefry Tests` {
         }
     }
 }
+
+extension `Threefry Tests`.`Threefry keyed unit draws` {
+    @Test
+    func `A keyed draw is the same on every platform`() {
+        let draws = Self.triples.map { Threefry.unit(key: $0.key, stream: $0.stream, index: $0.index, as: Double.self) }
+        #expect(
+            draws == [0x18_56dc_7518_58d3, 0x1f_c277_ea26_1c6b, 0x18_6a62_ab8a_a14e].map { Double($0) * 0x1p-53 }
+        )
+    }
+
+    @Test
+    func `A word as a unit value is its top bits as a share of one`() {
+        #expect(Threefry.unit(of: 0, as: Double.self) == 0)
+        #expect(Threefry.unit(of: .max, as: Double.self) == 1 - 0x1p-53)
+        #expect(Threefry.unit(of: .max, as: Float.self) == 1 - 0x1p-24)
+        #expect(Threefry.unit(of: 0x8000_0000_0000_07ff, as: Double.self) == 0.5)
+        let key = Threefry.Key(930, 5)
+        var generator = Threefry.Generator(key: key, stream: 4)
+        let block = generator.block(at: 0)
+        #expect(block.units(as: Double.self) == (generator.unit(as: Double.self), generator.unit(as: Double.self)))
+        #expect(block.units(as: Float.self).first == Threefry.unit(of: block.first, as: Float.self))
+    }
+}
+
+extension `Threefry Tests` {
+    @Suite
+    struct `Threefry addressed draws` {
+        private let draws = Threefry.Draws(key: .init(930, 5), item: 17, stream: 3)
+
+        @Test
+        func `Addressed draws are the same on every platform`() {
+            #expect(
+                (0..<6).map { draws.unit(at: $0, as: Double.self) }
+                    == [
+                        0x07_9988_3eea_4eb7, 0x0e_0e32_e8e6_a6b5, 0x05_5c1a_7cb4_67e2,
+                        0x1d_6882_eaab_aa91, 0x18_c6eb_0c30_5f62, 0x04_1a26_ea66_93d2,
+                    ].map { Double($0) * 0x1p-53 }
+            )
+            let far = Threefry.Draws(key: .init(.max, 1), item: .max, stream: 0xffff_ffff)
+            #expect(
+                [far.unit(at: 0x1_ffff_fffe, as: Double.self), far.unit(at: 0x1_ffff_ffff, as: Double.self)]
+                    == [0x18_6a62_ab8a_a14e, 0x1f_7565_2938_9677].map { Double($0) * 0x1p-53 }
+            )
+        }
+
+        @Test
+        func `Draws two k and two k plus one are the words of one block`() {
+            (0..<5 as Range<UInt64>).forEach { pair in
+                let block = Threefry.block(key: draws.key, counter: .init(17, 3 << 32 + pair))
+                #expect(draws.block(at: pair) == block)
+                #expect(draws.unit(at: 2 * pair, as: Double.self) == Threefry.unit(of: block.first, as: Double.self))
+                #expect(draws.unit(at: 2 * pair + 1, as: Double.self) == Threefry.unit(of: block.second, as: Double.self))
+            }
+        }
+
+        @Test
+        func `A pair is the two single draws it holds`() {
+            (0..<5 as Range<UInt64>).forEach { pair in
+                let double = draws.pair(at: pair, as: Double.self)
+                #expect(double.first == draws.unit(at: 2 * pair, as: Double.self))
+                #expect(double.second == draws.unit(at: 2 * pair + 1, as: Double.self))
+                let float = draws.pair(at: pair, as: Float.self)
+                #expect(float.first == draws.unit(at: 2 * pair, as: Float.self))
+                #expect(float.second == draws.unit(at: 2 * pair + 1, as: Float.self))
+            }
+        }
+
+        @Test
+        func `Streams below two to the 32 and indices below two to the 33 address distinct draws`() {
+            let streams: [UInt64] = [0, 1, 2, 0xffff_fffe, 0xffff_ffff]
+            let indices: [UInt64] = [0, 1, 2, 3, 0x1_ffff_fffe, 0x1_ffff_ffff]
+            var seen = Set<Double>()
+            for item: UInt64 in [0, 1, .max] {
+                for stream in streams {
+                    let draws = Threefry.Draws(key: draws.key, item: item, stream: stream)
+                    for index in indices { seen.insert(draws.unit(at: index, as: Double.self)) }
+                }
+            }
+            #expect(seen.count == 3 * streams.count * indices.count)
+        }
+
+        @Test
+        func `Beyond those ranges the stream and the index share the counter`() {
+            let first = Threefry.Draws(key: draws.key, item: 17, stream: 0)
+            let next = Threefry.Draws(key: draws.key, item: 17, stream: 1)
+            #expect(first.unit(at: 1 << 33, as: Double.self) == next.unit(at: 0, as: Double.self))
+        }
+
+        @Test
+        func `The draws of an item are the generator layout with the item as index`() {
+            (0..<3 as Range<UInt64>).forEach { pair in
+                var generator = Threefry.Generator(key: draws.key, stream: 3 << 32 + pair, index: 17)
+                let pairs = draws.pair(at: pair, as: Double.self)
+                #expect(pairs.first == generator.unit(as: Double.self))
+                #expect(pairs.second == generator.unit(as: Double.self))
+                #expect(
+                    pairs.first == Threefry.unit(key: draws.key, stream: 3 << 32 + pair, index: 17, as: Double.self)
+                )
+            }
+        }
+    }
+}

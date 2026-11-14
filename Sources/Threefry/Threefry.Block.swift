@@ -25,4 +25,10 @@ extension Threefry.Block {
             return UInt8(truncatingIfNeeded: word >> (UInt64(offset % 8) * 8))
         }
     }
+
+    /// Both words as values in [0, 1), each `Threefry.unit(of:)`.
+    @inlinable
+    public func units<Value: BinaryFloatingPoint>(as _: Value.Type = Value.self) -> (first: Value, second: Value) {
+        (Threefry.unit(of: first, as: Value.self), Threefry.unit(of: second, as: Value.self))
+    }
 }

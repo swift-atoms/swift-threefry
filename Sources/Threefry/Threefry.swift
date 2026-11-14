@@ -38,8 +38,20 @@ extension Threefry {
         index: UInt64 = 0,
         as _: Value.Type = Value.self
     ) -> Value {
-        var generator = Generator(key: key, stream: stream, index: index)
-        return generator.unit(as: Value.self)
+        unit(of: block(key: key, counter: Block(index, stream)).first, as: Value.self)
+    }
+
+    /// A 64-bit word as a value in [0, 1): its top bits, as many as the type's significand holds (at most
+    /// 64), as a share of one.
+    ///
+    /// For a type with a significand of p bits, counting the implicit one, it is `word >> (64 − p)` times
+    /// 2⁻ᵖ, `Double(word >> 11) * 0x1p-53` for `Double`: exact in the type, so never 1. It is `unit(as:)` of
+    /// a generator whose next value is the word.
+    @inlinable
+    public static func unit<Value: BinaryFloatingPoint>(of word: UInt64, as _: Value.Type = Value.self) -> Value {
+        let bits = Swift.min(Value.significandBitCount + 1, UInt64.bitWidth)
+        let step = Value(sign: .plus, exponent: Value.Exponent(-bits), significand: 1)
+        return Value(word >> UInt64(UInt64.bitWidth - bits)) * step
     }
 
     /// Four mix rounds with the given rotations.
