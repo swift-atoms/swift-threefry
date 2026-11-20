@@ -59,6 +59,27 @@ extension Threefry.Generator {
         offset = 0
         current = block(at: index)
     }
+
+    /// The next uniform draw in [0, 1).
+    public mutating func unit<Value: BinaryFloatingPoint>(as _: Value.Type = Value.self) -> Value {
+        Threefry.unit(of: next(), as: Value.self)
+    }
+
+    /// The next uniform draw in `range`.
+    public mutating func value<Value: BinaryFloatingPoint>(in range: ClosedRange<Value>) -> Value {
+        range.lowerBound + (range.upperBound - range.lowerBound) * unit(as: Value.self)
+    }
+
+    /// An index uniformly drawn from `0..<count`.
+    public mutating func index(below count: UInt64) -> UInt64 {
+        precondition(count > 0, "Upper bound must be positive")
+        return Swift.min(count - 1, UInt64(unit(as: Double.self) * Double(count)))
+    }
+
+    /// Whether an event of the given probability occurs.
+    public mutating func occurs<Value: BinaryFloatingPoint>(probability: Value) -> Bool {
+        unit(as: Value.self) < probability
+    }
 }
 
 extension Threefry.Generator: Hashable {

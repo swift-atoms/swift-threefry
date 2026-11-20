@@ -15,3 +15,11 @@ extension Threefry {
         }
     }
 }
+
+extension Threefry.Key {
+
+    /// A key derived from a single 64-bit seed word.
+    public init(seed: UInt64) {
+        self.init(seed, 0x5EED)
+    }
+}
